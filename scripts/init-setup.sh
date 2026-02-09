@@ -1,0 +1,261 @@
+#!/bin/bash
+# ==============================================================================
+# init-setup.sh — One-shot initialization for claude-code-mobile container
+# Runs via s6-overlay oneshot before any services start.
+# Idempotent: safe to run on every container restart.
+# ==============================================================================
+set -e
+
+# ------------------------------------------------------------------------------
+# Import container environment variables from s6-overlay
+# s6-overlay stores Docker env vars in /var/run/s6/container_environment/
+# Oneshot scripts do NOT inherit them automatically.
+# ------------------------------------------------------------------------------
+if [ -d /var/run/s6/container_environment ]; then
+    for envfile in /var/run/s6/container_environment/*; do
+        if [ -f "$envfile" ]; then
+            varname="$(basename "$envfile")"
+            # Skip s6-internal variables
+            case "$varname" in S6_*|s6-*) continue ;; esac
+            export "$varname"="$(cat "$envfile")"
+        fi
+    done
+fi
+
+# ------------------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------------------
+log() { echo ">>> $*"; }
+warn() { echo "!!! WARNING: $*" >&2; }
+die() { echo "!!! ERROR: $*" >&2; exit 1; }
+
+CLAUDE_USER="claude"
+CLAUDE_HOME="/home/${CLAUDE_USER}"
+DATA_DIR="/data"
+DATA_HOME="${DATA_DIR}/home"
+DATA_SSH_KEYS="${DATA_DIR}/ssh_host_keys"
+DATA_FAIL2BAN="${DATA_DIR}/fail2ban"
+DATA_WORKSPACE="${DATA_DIR}/workspace"
+
+# ==============================================================================
+# Step 1: Volume directory initialization
+# ==============================================================================
+log "Initializing volume directories under ${DATA_DIR}..."
+
+for dir in "${DATA_HOME}" "${DATA_SSH_KEYS}" "${DATA_FAIL2BAN}" "${DATA_WORKSPACE}"; do
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir"
+        log "  Created $dir"
+    fi
+done
+
+# Ownership: claude owns home and workspace, root owns the rest
+chown "${CLAUDE_USER}:${CLAUDE_USER}" "${DATA_HOME}" "${DATA_WORKSPACE}"
+chown root:root "${DATA_SSH_KEYS}" "${DATA_FAIL2BAN}"
+
+# ==============================================================================
+# Step 2: SSH host key persistence
+# ==============================================================================
+log "Configuring SSH host keys..."
+
+# Remove weak key types unconditionally
+rm -f /etc/ssh/ssh_host_dsa_key*    /etc/ssh/ssh_host_dsa_key*.pub
+rm -f /etc/ssh/ssh_host_ecdsa_key*  /etc/ssh/ssh_host_ecdsa_key*.pub
+
+if [ -f "${DATA_SSH_KEYS}/ssh_host_ed25519_key" ] && \
+   [ -f "${DATA_SSH_KEYS}/ssh_host_rsa_key" ]; then
+    # Restore persisted keys
+    log "  Restoring persisted host keys from ${DATA_SSH_KEYS}..."
+    cp -f "${DATA_SSH_KEYS}"/ssh_host_*_key     /etc/ssh/
+    cp -f "${DATA_SSH_KEYS}"/ssh_host_*_key.pub  /etc/ssh/
+else
+    # Generate new keys
+    log "  Generating new Ed25519 host key..."
+    ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N "" < /dev/null
+
+    log "  Generating new RSA-4096 host key..."
+    ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N "" < /dev/null
+
+    # Persist for next restart
+    log "  Persisting host keys to ${DATA_SSH_KEYS}..."
+    cp -f /etc/ssh/ssh_host_*_key     "${DATA_SSH_KEYS}/"
+    cp -f /etc/ssh/ssh_host_*_key.pub "${DATA_SSH_KEYS}/"
+fi
+
+# Enforce correct permissions
+chmod 600 /etc/ssh/ssh_host_*_key
+chmod 644 /etc/ssh/ssh_host_*_key.pub
+chmod 600 "${DATA_SSH_KEYS}"/ssh_host_*_key     2>/dev/null || true
+chmod 644 "${DATA_SSH_KEYS}"/ssh_host_*_key.pub  2>/dev/null || true
+
+# ==============================================================================
+# Step 3: DH moduli filtering (keep only >= 3071-bit entries)
+# ==============================================================================
+if [ -f /etc/ssh/moduli ]; then
+    MODULI_LINES=$(wc -l < /etc/ssh/moduli)
+    # Only filter if file has more lines than a filtered version would
+    # (i.e., there are still weak entries present)
+    SAFE_LINES=$(awk '$5 >= 3071' /etc/ssh/moduli | wc -l)
+    if [ "$MODULI_LINES" -ne "$SAFE_LINES" ]; then
+        log "Filtering DH moduli (keeping >= 3071-bit entries)..."
+        awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
+        mv /etc/ssh/moduli.safe /etc/ssh/moduli
+        log "  Reduced from ${MODULI_LINES} to ${SAFE_LINES} entries."
+    else
+        log "DH moduli already filtered (${SAFE_LINES} entries). Skipping."
+    fi
+fi
+
+# ==============================================================================
+# Step 4: Home directory persistence (change home to /data/home)
+# Must happen BEFORE SSH key setup so keys go in the right place.
+# ==============================================================================
+log "Setting up persistent home directory..."
+
+# If /data/home is empty (first run), seed it from /etc/skel + existing home
+if [ ! -f "${DATA_HOME}/.bashrc" ]; then
+    log "  First run detected. Seeding ${DATA_HOME} from /etc/skel..."
+    cp -a /etc/skel/. "${DATA_HOME}/"
+    # Merge any files from the original /home/claude (created by useradd -m)
+    if [ -d "${CLAUDE_HOME}" ] && [ ! -L "${CLAUDE_HOME}" ]; then
+        cp -a --no-clobber "${CLAUDE_HOME}/." "${DATA_HOME}/" 2>/dev/null || true
+    fi
+fi
+
+# Change the user's home directory to /data/home
+# This avoids symlink ownership issues with sshd StrictModes
+if [ "$(getent passwd ${CLAUDE_USER} | cut -d: -f6)" != "${DATA_HOME}" ]; then
+    usermod -d "${DATA_HOME}" "${CLAUDE_USER}"
+    log "  Changed ${CLAUDE_USER} home to ${DATA_HOME}"
+fi
+
+# Update our variable to reflect the actual home
+CLAUDE_HOME="${DATA_HOME}"
+
+# Ensure correct ownership
+chown "${CLAUDE_USER}:${CLAUDE_USER}" "${DATA_HOME}"
+
+# ==============================================================================
+# Step 5: User SSH key setup (uses updated CLAUDE_HOME = /data/home)
+# ==============================================================================
+log "Configuring user SSH authorized keys..."
+
+if [ -z "${SSH_PUBLIC_KEY:-}" ]; then
+    die "SSH_PUBLIC_KEY environment variable is not set. Cannot configure SSH access."
+fi
+
+SSH_DIR="${CLAUDE_HOME}/.ssh"
+AUTHORIZED_KEYS="${SSH_DIR}/authorized_keys"
+
+mkdir -p "${SSH_DIR}"
+chmod 700 "${SSH_DIR}"
+
+# Environment variable is the source of truth -- always overwrite
+printf '%s\n' "${SSH_PUBLIC_KEY}" > "${AUTHORIZED_KEYS}"
+chmod 600 "${AUTHORIZED_KEYS}"
+chown -R "${CLAUDE_USER}:${CLAUDE_USER}" "${SSH_DIR}"
+
+log "  Wrote authorized_keys to ${AUTHORIZED_KEYS} ($(wc -l < "${AUTHORIZED_KEYS}") key(s))."
+
+# ==============================================================================
+# Step 6: Workspace directory
+# ==============================================================================
+log "Setting up workspace..."
+
+if [ ! -L /workspace ] || [ "$(readlink /workspace)" != "${DATA_WORKSPACE}" ]; then
+    rm -rf /workspace 2>/dev/null || true
+    ln -sfn "${DATA_WORKSPACE}" /workspace
+    log "  Symlinked /workspace -> ${DATA_WORKSPACE}"
+else
+    log "  Workspace symlink already correct."
+fi
+
+chown "${CLAUDE_USER}:${CLAUDE_USER}" "${DATA_WORKSPACE}"
+
+# ==============================================================================
+# Step 7: fail2ban persistence
+# ==============================================================================
+log "Configuring fail2ban persistence..."
+
+mkdir -p /var/lib/fail2ban
+
+if [ -f "${DATA_FAIL2BAN}/fail2ban.sqlite3" ]; then
+    log "  Restoring fail2ban database from ${DATA_FAIL2BAN}..."
+    cp -f "${DATA_FAIL2BAN}/fail2ban.sqlite3" /var/lib/fail2ban/fail2ban.sqlite3
+fi
+
+# Create a cron-like sync script for runtime persistence
+# (s6 finish scripts or a periodic task will call this)
+cat > /usr/local/bin/persist-fail2ban <<'SCRIPT'
+#!/bin/bash
+# Sync fail2ban database back to persistent storage
+if [ -f /var/lib/fail2ban/fail2ban.sqlite3 ]; then
+    cp -f /var/lib/fail2ban/fail2ban.sqlite3 /data/fail2ban/fail2ban.sqlite3
+fi
+SCRIPT
+chmod +x /usr/local/bin/persist-fail2ban
+
+# ==============================================================================
+# Step 8: Logging and runtime directories
+# ==============================================================================
+log "Preparing logging and runtime directories..."
+
+# auth.log is required by rsyslog and fail2ban
+touch /var/log/auth.log
+chmod 640 /var/log/auth.log
+
+# sshd privilege separation directory
+mkdir -p /var/run/sshd
+
+# ==============================================================================
+# Step 9: Environment and application config
+# ==============================================================================
+log "Configuring environment..."
+
+# Anthropic API key for Claude Code
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    CLAUDE_CONFIG_DIR="${CLAUDE_HOME}/.claude"
+    mkdir -p "${CLAUDE_CONFIG_DIR}"
+
+    # Write a JSON settings file that Claude Code reads
+    cat > "${CLAUDE_CONFIG_DIR}/.env" <<EOF
+ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+EOF
+    chmod 600 "${CLAUDE_CONFIG_DIR}/.env"
+    chown -R "${CLAUDE_USER}:${CLAUDE_USER}" "${CLAUDE_CONFIG_DIR}"
+    log "  ANTHROPIC_API_KEY configured."
+
+    # Also export in .bashrc so SSH sessions have access
+    # (sshd does not propagate Docker env vars to user sessions)
+    BASHRC="${CLAUDE_HOME}/.bashrc"
+    if [ -f "${BASHRC}" ]; then
+        # Remove any existing ANTHROPIC_API_KEY export to avoid duplicates
+        sed -i '/^export ANTHROPIC_API_KEY=/d' "${BASHRC}"
+    fi
+    echo "export ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" >> "${BASHRC}"
+    chown "${CLAUDE_USER}:${CLAUDE_USER}" "${BASHRC}"
+else
+    warn "ANTHROPIC_API_KEY not set. Claude Code will require manual auth."
+fi
+
+# Timezone
+if [ -n "${TZ:-}" ]; then
+    # Sanitize TZ: only allow alphanumeric, /, _, -
+    if echo "${TZ}" | grep -qE '^[a-zA-Z0-9/_-]+$'; then
+        if [ -f "/usr/share/zoneinfo/${TZ}" ]; then
+            ln -sfn "/usr/share/zoneinfo/${TZ}" /etc/localtime
+            echo "${TZ}" > /etc/timezone
+            log "  Timezone set to ${TZ}."
+        else
+            warn "Invalid timezone '${TZ}'. Keeping default."
+        fi
+    else
+        warn "Invalid timezone format '${TZ}'. Keeping default."
+    fi
+fi
+
+# ==============================================================================
+# Done
+# ==============================================================================
+log "Initialization complete."
+exit 0
