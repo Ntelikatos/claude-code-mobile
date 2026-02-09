@@ -126,6 +126,24 @@ if [ ! -f "${DATA_HOME}/.bashrc" ]; then
     fi
 fi
 
+# Always ensure Claude Code binary is available in persistent home.
+# The native install lives in /home/claude/.local/ (build-time home).
+# On existing volumes from older builds, .local/bin/claude may be missing.
+BUILD_HOME="/home/${CLAUDE_USER}"
+if [ ! -x "${DATA_HOME}/.local/bin/claude" ] && [ -d "${BUILD_HOME}/.local" ]; then
+    log "  Syncing Claude Code installation to ${DATA_HOME}/.local/..."
+    mkdir -p "${DATA_HOME}/.local"
+    cp -a --no-clobber "${BUILD_HOME}/.local/." "${DATA_HOME}/.local/" 2>/dev/null || true
+    chown -R "${CLAUDE_USER}:${CLAUDE_USER}" "${DATA_HOME}/.local"
+fi
+
+# Ensure ~/.local/bin is in PATH for all shell types (login + non-login)
+BASHRC="${DATA_HOME}/.bashrc"
+if [ -f "${BASHRC}" ] && ! grep -q '\.local/bin' "${BASHRC}"; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "${BASHRC}"
+    log "  Added ~/.local/bin to PATH in .bashrc"
+fi
+
 # Change the user's home directory to /data/home
 # This avoids symlink ownership issues with sshd StrictModes
 if [ "$(getent passwd ${CLAUDE_USER} | cut -d: -f6)" != "${DATA_HOME}" ]; then
