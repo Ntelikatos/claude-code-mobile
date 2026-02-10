@@ -9,6 +9,7 @@ Run Claude Code from anywhere via SSH. Deploy on Railway and code from your phon
 - **Hardened SSH** — key-only auth, modern ciphers, sshaudit.com compliant. No passwords, no weak algorithms.
 - **Brute-force protection** — fail2ban bans attackers automatically (1 hour ban after 3 failures, 1 week for repeat offenders)
 - **Mobile-optimized tmux** — pre-tuned for Termius, Blink, and JuiceSSH. No broken characters, no escape sequence leaks.
+- **GitHub CLI built-in** — `gh auth login` once, then clone any private repo with `git clone`
 - **Persistent storage** — your projects, auth, and config survive redeployments via Railway volumes
 - **Multi-device access** — add SSH keys from your laptop, phone, and tablet. Connect from anywhere.
 
@@ -99,6 +100,25 @@ claude
 ```
 
 Detach anytime with `Ctrl+B` then `D`. Reattach later with `tmux attach -t dev`.
+
+### Step 8: Clone Your Repos (optional)
+
+GitHub CLI is pre-installed. Authenticate once and clone any repo — public or private:
+
+```bash
+gh auth login
+```
+
+Select **GitHub.com** > **HTTPS** > **Login with a web browser**. It gives you a one-time code — open the URL on your phone/laptop browser, paste the code, done.
+
+Then clone any repo:
+```bash
+cd /workspace
+git clone https://github.com/you/your-private-repo
+claude
+```
+
+Git is automatically configured to use your `gh` auth for HTTPS clones — no tokens or SSH keys to manage. Auth persists across restarts via the `/data` volume.
 
 ---
 

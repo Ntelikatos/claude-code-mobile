@@ -282,6 +282,20 @@ if [ -n "${TZ:-}" ]; then
 fi
 
 # ==============================================================================
+# Step 10: GitHub CLI & Git configuration
+# ==============================================================================
+log "Configuring GitHub CLI and Git..."
+
+# Use gh as the git credential helper so 'git clone https://github.com/...'
+# works for private repos after 'gh auth login'
+su -s /bin/bash "${CLAUDE_USER}" -c '
+    git config --global credential.https://github.com.helper "!/usr/bin/gh auth git-credential"
+    git config --global credential.https://gist.github.com.helper "!/usr/bin/gh auth git-credential"
+' 2>/dev/null
+
+log "  Git credential helper configured (gh auth)."
+
+# ==============================================================================
 # Done
 # ==============================================================================
 log "Initialization complete."
