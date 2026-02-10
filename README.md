@@ -2,6 +2,8 @@
 
 Run Claude Code from anywhere via SSH. Deploy on Railway and code from your phone in under 5 minutes.
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/deploy/claude-code-mobile) [![Star on GitHub](https://img.shields.io/github/stars/Ntelikatos/claude-code-mobile?style=social)](https://github.com/Ntelikatos/claude-code-mobile)
+
 ## What You Get
 
 - **Claude Code CLI** ready to use over SSH from any device
@@ -28,21 +30,24 @@ Click the button above, or manually create a project on [railway.com](https://ra
 
 In Railway dashboard, go to your service **Variables** and add:
 
-| Variable | Value |
-|----------|-------|
+| Variable         | Value                                         |
+| ---------------- | --------------------------------------------- |
 | `SSH_PUBLIC_KEY` | Your public key (see below for how to get it) |
 
 **From desktop** — copy your existing key:
+
 ```bash
 cat ~/.ssh/id_ed25519.pub
 ```
 
 **From mobile (Termius)** — generate a new key:
+
 1. Open Termius > **Keychain** > **Keys** > **+** > **Generate**
 2. Select **Ed25519**, give it a name, save
 3. Tap the key > **Export public key** > copy the text
 
 **Using multiple devices?** Paste all public keys into `SSH_PUBLIC_KEY`, one per line:
+
 ```
 ssh-ed25519 AAAA...laptop-key... you@laptop
 ssh-ed25519 AAAA...phone-key... mobile
@@ -78,14 +83,17 @@ Replace the domain and port with your values from Step 3.
 Choose one method:
 
 **Option A: Claude Account (Pro/Max subscription)** — recommended
+
 ```bash
 claude login
 ```
+
 This prints a URL. Open it in any browser, sign in with your Claude account, done. No API key needed.
 
 **Option B: API Key**
 
 Add `ANTHROPIC_API_KEY` in Railway Variables (triggers redeploy), or set it manually:
+
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-your-key-here
 echo 'export ANTHROPIC_API_KEY=sk-ant-your-key-here' >> ~/.bashrc
@@ -117,11 +125,12 @@ Use a fine-grained Personal Access Token to grant access to **specific repos onl
 6. Generate and copy the token
 7. In Railway dashboard, add it as a variable:
 
-| Variable | Value |
-|----------|-------|
+| Variable       | Value                |
+| -------------- | -------------------- |
 | `GITHUB_TOKEN` | `github_pat_xxxx...` |
 
 After redeploy, just clone:
+
 ```bash
 cd /workspace
 git clone https://github.com/you/your-private-repo
@@ -185,6 +194,7 @@ tmux ls
 ```
 
 **One-liner** — auto-attach on connect (save this in your SSH client):
+
 ```bash
 ssh claude@<host> -p <port> -i ~/.ssh/id_ed25519 -t "tmux attach -t dev || tmux new -s dev"
 ```
@@ -195,14 +205,14 @@ The included tmux config is tuned for mobile: 256-color support, mouse/touch scr
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SSH_PUBLIC_KEY` | Yes | — | Ed25519 public key(s) for SSH auth. Multiple keys supported, one per line. |
-| `ANTHROPIC_API_KEY` | No | — | Claude API key. Alternative to `claude login`. |
-| `GITHUB_TOKEN` | No | — | Fine-grained PAT for cloning private repos. Scoped to specific repos only. |
-| `NODE_VERSION` | No | `24` | Node.js version (e.g. `22`, `20.18.0`). Uses `n` to switch at boot. |
-| `PNPM_VERSION` | No | `latest` | pnpm version (e.g. `9.15.0`, `10`). Uses corepack to switch at boot. |
-| `TZ` | No | `UTC` | Timezone (e.g. `America/New_York`, `Europe/London`) |
+| Variable            | Required | Default  | Description                                                                |
+| ------------------- | -------- | -------- | -------------------------------------------------------------------------- |
+| `SSH_PUBLIC_KEY`    | Yes      | —        | Ed25519 public key(s) for SSH auth. Multiple keys supported, one per line. |
+| `ANTHROPIC_API_KEY` | No       | —        | Claude API key. Alternative to `claude login`.                             |
+| `GITHUB_TOKEN`      | No       | —        | Fine-grained PAT for cloning private repos. Scoped to specific repos only. |
+| `NODE_VERSION`      | No       | `24`     | Node.js version (e.g. `22`, `20.18.0`). Uses `n` to switch at boot.        |
+| `PNPM_VERSION`      | No       | `latest` | pnpm version (e.g. `9.15.0`, `10`). Uses corepack to switch at boot.       |
+| `TZ`                | No       | `UTC`    | Timezone (e.g. `America/New_York`, `Europe/London`)                        |
 
 ---
 
@@ -222,6 +232,7 @@ The included tmux config is tuned for mobile: 256-color support, mouse/touch scr
 ## Troubleshooting
 
 **Host key warning after redeploy**: Remove the old key:
+
 ```bash
 ssh-keygen -R "[your-host]:port"
 ```
@@ -238,11 +249,11 @@ ssh-keygen -R "[your-host]:port"
 
 ## Cost
 
-| Platform | Cost | Notes |
-|----------|------|-------|
-| Railway Hobby | ~$5-10/mo | Pay-as-you-go, TCP proxy included |
-| Hetzner CX22 | ~$4/mo | 2 vCPU, 4GB RAM, full iptables |
-| Oracle Cloud Free | $0 | ARM A1, always-free tier |
+| Platform          | Cost      | Notes                             |
+| ----------------- | --------- | --------------------------------- |
+| Railway Hobby     | ~$5-10/mo | Pay-as-you-go, TCP proxy included |
+| Hetzner CX22      | ~$4/mo    | 2 vCPU, 4GB RAM, full iptables    |
+| Oracle Cloud Free | $0        | ARM A1, always-free tier          |
 
 See [docs/vps-deployment.md](docs/vps-deployment.md) for VPS and local Docker deployment instructions.
 
