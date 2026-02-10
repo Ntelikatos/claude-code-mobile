@@ -126,15 +126,24 @@ if [ ! -f "${DATA_HOME}/.bashrc" ]; then
     fi
 fi
 
-# Always ensure Claude Code binary is available in persistent home.
+# Always ensure Claude Code binary is up to date in persistent home.
 # The native install lives in /home/claude/.local/ (build-time home).
-# On existing volumes from older builds, .local/bin/claude may be missing.
+# On rebuild, the version may change, breaking existing symlinks.
 BUILD_HOME="/home/${CLAUDE_USER}"
-if [ ! -x "${DATA_HOME}/.local/bin/claude" ] && [ -d "${BUILD_HOME}/.local" ]; then
-    log "  Syncing Claude Code installation to ${DATA_HOME}/.local/..."
-    mkdir -p "${DATA_HOME}/.local"
-    cp -a --no-clobber "${BUILD_HOME}/.local/." "${DATA_HOME}/.local/" 2>/dev/null || true
-    chown -R "${CLAUDE_USER}:${CLAUDE_USER}" "${DATA_HOME}/.local"
+if [ -d "${BUILD_HOME}/.local/share/claude" ]; then
+    BUILD_VER="$(readlink "${BUILD_HOME}/.local/bin/claude" 2>/dev/null || echo "")"
+    DATA_VER="$(readlink "${DATA_HOME}/.local/bin/claude" 2>/dev/null || echo "")"
+    if [ "$BUILD_VER" != "$DATA_VER" ] || [ ! -x "${DATA_HOME}/.local/bin/claude" ]; then
+        log "  Syncing Claude Code installation to ${DATA_HOME}/.local/..."
+        mkdir -p "${DATA_HOME}/.local/bin" "${DATA_HOME}/.local/share"
+        # Force-copy bin and share to update symlinks and version files
+        cp -af "${BUILD_HOME}/.local/bin/." "${DATA_HOME}/.local/bin/"
+        cp -af "${BUILD_HOME}/.local/share/claude" "${DATA_HOME}/.local/share/"
+        chown -R "${CLAUDE_USER}:${CLAUDE_USER}" "${DATA_HOME}/.local"
+        log "  Claude Code updated: $(readlink "${DATA_HOME}/.local/bin/claude")"
+    else
+        log "  Claude Code already up to date."
+    fi
 fi
 
 # Ensure ~/.local/bin is in PATH and UTF-8 locale for all shell types
