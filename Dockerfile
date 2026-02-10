@@ -103,6 +103,10 @@ COPY s6-overlay/s6-rc.d/      /etc/s6-overlay/s6-rc.d/
 COPY scripts/init-setup.sh    /etc/s6-overlay/scripts/init-setup.sh
 RUN chmod +x /etc/s6-overlay/scripts/init-setup.sh
 
+# ---------- stderr-to-json helper for Railway structured logging --------------
+COPY scripts/stderr-to-json.sh /usr/local/bin/stderr-to-json
+RUN chmod +x /usr/local/bin/stderr-to-json
+
 # ---------- register s6 services in user bundle -------------------------------
 RUN for svc in /etc/s6-overlay/s6-rc.d/*/type; do \
         svc_name="$(basename "$(dirname "$svc")")"; \
@@ -117,4 +121,4 @@ EXPOSE 22
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD ssh-keyscan -T 5 localhost >/dev/null 2>&1 || exit 1
 
-ENTRYPOINT ["/init"]
+ENTRYPOINT ["/bin/bash", "-c", "exec /init 2> >(stderr-to-json)"]

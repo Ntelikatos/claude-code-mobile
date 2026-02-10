@@ -1,1 +1,1 @@
-/etc/s6-overlay/scripts/init-setup.sh 2>&1
+/etc/s6-overlay/scripts/init-setup.sh
