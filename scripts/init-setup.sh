@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# init-setup.sh — One-shot initialization for claude-code-mobile container
+# init-setup.sh — One-shot initialization for claude-code-ssh container
 # Runs via s6-overlay oneshot before any services start.
 # Idempotent: safe to run on every container restart.
 # ==============================================================================

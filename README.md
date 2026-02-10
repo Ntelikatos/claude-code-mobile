@@ -1,8 +1,8 @@
-# Claude Code Mobile
+# Claude Code SSH
 
 Run Claude Code from anywhere via SSH. Deploy on Railway and code from your phone in under 5 minutes.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/deploy/claude-code-mobile) [![Star on GitHub](https://img.shields.io/github/stars/Ntelikatos/claude-code-mobile?style=social)](https://github.com/Ntelikatos/claude-code-mobile)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/deploy/claude-code-ssh) [![Star on GitHub](https://img.shields.io/github/stars/Ntelikatos/claude-code-ssh?style=social)](https://github.com/Ntelikatos/claude-code-ssh)
 
 ## What You Get
 
@@ -22,7 +22,7 @@ Run Claude Code from anywhere via SSH. Deploy on Railway and code from your phon
 
 ### Step 1: Deploy the Template
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/claude-code-mobile)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/claude-code-ssh)
 
 Click the button above, or manually create a project on [railway.com](https://railway.com) and deploy from this GitHub repo.
 

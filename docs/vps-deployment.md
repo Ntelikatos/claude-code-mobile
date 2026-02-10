@@ -4,15 +4,15 @@
 
 ```bash
 # Build the image
-docker build -t claude-code-mobile .
+docker build -t claude-code-ssh .
 
 # Run the container
 docker run -d \
   -e SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)" \
   -p 2222:22 \
   -v claude-data:/data \
-  --name claude-mobile \
-  claude-code-mobile
+  --name claude-ssh \
+  claude-code-ssh
 
 # Connect
 ssh claude@localhost -p 2222 -i ~/.ssh/id_ed25519
@@ -28,8 +28,8 @@ docker run -d \
   -p 22:22 \
   -v claude-data:/data \
   --cap-add=NET_ADMIN \
-  --name claude-mobile \
-  claude-code-mobile
+  --name claude-ssh \
+  claude-code-ssh
 ```
 
 To switch fail2ban from `hostsdeny` to `iptables`, edit `/etc/fail2ban/jail.local` inside the container:
@@ -43,14 +43,14 @@ banaction = iptables-multiport
 
 ```bash
 # Check container logs
-docker logs -f claude-mobile
+docker logs -f claude-ssh
 
 # Shell into the container
-docker exec -it claude-mobile bash
+docker exec -it claude-ssh bash
 
 # Check service status
-docker exec claude-mobile bash -c 's6-rc -l list'
+docker exec claude-ssh bash -c 's6-rc -l list'
 
 # Check fail2ban status
-docker exec claude-mobile bash -c 'fail2ban-client status sshd'
+docker exec claude-ssh bash -c 'fail2ban-client status sshd'
 ```

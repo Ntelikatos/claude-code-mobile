@@ -1,5 +1,5 @@
 # ==============================================================================
-# claude-code-mobile — SSH-accessible Claude Code container
+# claude-code-ssh — SSH-accessible Claude Code container
 # Base: node:24-slim (Debian Bookworm)
 # PID 1: s6-overlay v3
 # ==============================================================================

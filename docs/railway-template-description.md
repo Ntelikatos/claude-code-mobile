@@ -1,10 +1,10 @@
-# Deploy and Host claude-code-mobile on Railway
+# Deploy and Host claude-code-ssh on Railway
 
-Claude Code Mobile gives you instant SSH access to Anthropic's Claude Code CLI from any device — phone, tablet, or laptop. Deploy on Railway in minutes and start AI-powered coding from anywhere, with persistent sessions that survive disconnects.
+Claude Code SSH gives you instant SSH access to Anthropic's Claude Code CLI from any device — phone, tablet, or laptop. Deploy on Railway in minutes and start AI-powered coding from anywhere, with persistent sessions that survive disconnects.
 
-## About Hosting claude-code-mobile
+## About Hosting claude-code-ssh
 
-Claude Code is powerful, but it requires a terminal. That's fine at your desk — not so much from your phone on the couch, or your tablet at a coffee shop. Claude Code Mobile solves this by packaging Claude Code into a secure, always-on Railway service you can SSH into from any device. Your coding sessions persist through WiFi switches, app closures, and even Railway redeployments. Just reconnect and pick up where you left off. Set one Railway variable (your SSH key), enable the TCP proxy, attach a volume, and you're coding with Claude in under 5 minutes.
+Claude Code is powerful, but it requires a terminal. That's fine at your desk — not so much from your phone on the couch, or your tablet at a coffee shop. Claude Code SSH solves this by packaging Claude Code into a secure, always-on Railway service you can SSH into from any device. Your coding sessions persist through WiFi switches, app closures, and even Railway redeployments. Just reconnect and pick up where you left off. Set one Railway variable (your SSH key), enable the TCP proxy, attach a volume, and you're coding with Claude in under 5 minutes.
 
 ## Common Use Cases
 
@@ -12,7 +12,7 @@ Claude Code is powerful, but it requires a terminal. That's fine at your desk �
 - **AI pair programming from anywhere** — Access Claude Code without installing anything locally. Works with your Claude Pro/Max subscription or API key.
 - **Secure remote development** — Clone private repos, build full-stack projects, create PRs — all from an isolated Railway service with hardened SSH and brute-force protection.
 
-## Dependencies for claude-code-mobile Hosting
+## Dependencies for claude-code-ssh Hosting
 
 - **Claude Code authentication** — A Claude Pro/Max subscription (via `claude login`) or an Anthropic API key
 - **SSH key pair** — Ed25519 key for secure access (generate in Termius on mobile or via `ssh-keygen` on desktop)
@@ -43,11 +43,11 @@ claude
 - **Multi-device access** — Add SSH keys from every device you own, connect from anywhere
 - **Auto-updating** — Claude Code updates automatically on every Railway redeploy
 
-## Why Deploy claude-code-mobile on Railway?
+## Why Deploy claude-code-ssh on Railway?
 
 Railway is a singular platform to deploy your infrastructure stack. Railway will host your infrastructure so you don't have to deal with configuration, while allowing you to vertically and horizontally scale it.
 
-By deploying claude-code-mobile on Railway, you are one step closer to supporting a complete full-stack application with minimal burden. Host your servers, databases, AI agents, and more on Railway.
+By deploying claude-code-ssh on Railway, you are one step closer to supporting a complete full-stack application with minimal burden. Host your servers, databases, AI agents, and more on Railway.
 
 ---
 
