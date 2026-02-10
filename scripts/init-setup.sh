@@ -310,6 +310,27 @@ else
 fi
 
 # ==============================================================================
+# Step 11: Node.js and pnpm version overrides
+# ==============================================================================
+CURRENT_NODE="$(node --version 2>/dev/null | tr -d 'v')"
+
+if [ -n "${NODE_VERSION:-}" ] && [ "$NODE_VERSION" != "$CURRENT_NODE" ]; then
+    log "Switching Node.js from v${CURRENT_NODE} to v${NODE_VERSION}..."
+    n "$NODE_VERSION" || warn "Failed to install Node.js v${NODE_VERSION}"
+    log "  Node.js now $(node --version)"
+fi
+
+if [ -n "${PNPM_VERSION:-}" ]; then
+    CURRENT_PNPM="$(pnpm --version 2>/dev/null)"
+    if [ "$PNPM_VERSION" != "$CURRENT_PNPM" ]; then
+        log "Switching pnpm from v${CURRENT_PNPM} to v${PNPM_VERSION}..."
+        npm install -g "pnpm@${PNPM_VERSION}" --loglevel=warn \
+            || warn "Failed to install pnpm v${PNPM_VERSION}"
+        log "  pnpm now $(pnpm --version 2>/dev/null)"
+    fi
+fi
+
+# ==============================================================================
 # Done
 # ==============================================================================
 log "Initialization complete."
