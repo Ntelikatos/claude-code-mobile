@@ -1,10 +1,10 @@
 # ==============================================================================
 # claude-code-mobile — SSH-accessible Claude Code container
-# Base: node:22-slim (Debian Bookworm)
+# Base: node:24-slim (Debian Bookworm)
 # PID 1: s6-overlay v3
 # ==============================================================================
 
-FROM node:22-slim AS base
+FROM node:24-slim AS base
 
 # ---------- build args --------------------------------------------------------
 ARG S6_OVERLAY_VERSION=3.2.0.2
@@ -44,6 +44,10 @@ RUN install -m 0755 -d /etc/apt/keyrings \
         > /etc/apt/sources.list.d/github-cli.list \
     && apt-get update && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
+
+# ---------- Node version manager (n) + pnpm -----------------------------------
+RUN npm install -g n pnpm \
+    && npm cache clean --force
 
 # ---------- s6-overlay v3 -----------------------------------------------------
 ARG TARGETARCH
